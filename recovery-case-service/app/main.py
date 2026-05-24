@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -13,6 +14,10 @@ configure_logging(service_name=settings.service_name, log_level=settings.log_lev
 logger = get_logger(__name__)
 match_accepted_consumer = MatchAcceptedConsumer()
 outbox_publisher = OutboxPublisher()
+
+
+def docs_url(path: str) -> str | None:
+    return path if settings.environment.lower() in {"dev", "development", "local"} else None
 
 
 @asynccontextmanager
@@ -37,6 +42,10 @@ app = FastAPI(
     description="Recovery case service with saga orchestration for item recovery flows.",
     version=settings.service_version,
     lifespan=lifespan,
+    docs_url=docs_url("/docs"),
+    redoc_url=docs_url("/redoc"),
+    openapi_url=docs_url("/openapi.json"),
 )
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)
+Instrumentator().instrument(app).expose(app)
