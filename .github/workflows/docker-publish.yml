@@ -1,0 +1,47 @@
+name: Docker Publish
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "auth-service/**"
+      - "gateway/**"
+      - "item-service/**"
+      - "matching-service/**"
+      - "recovery-case-service/**"
+      - ".github/workflows/docker-publish.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - gateway
+          - item-service
+          - matching-service
+          - recovery-case-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Set image metadata
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.service }}" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Build image
+        run: docker build -t "$IMAGE_NAME:$IMAGE_TAG" "${{ matrix.service }}"
+
+      - name: Push image
+        run: docker push "$IMAGE_NAME:$IMAGE_TAG"
