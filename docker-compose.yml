@@ -1,0 +1,255 @@
+x-backend-service-env: &backend-service-env
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-app}:${RABBITMQ_DEFAULT_PASS:-app}@rabbitmq:5672/
+  RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-domain.events}
+  RABBITMQ_DEAD_LETTER_EXCHANGE: ${RABBITMQ_DEAD_LETTER_EXCHANGE:-domain.events.dlx}
+
+x-http-healthcheck: &http-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 15s
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-app}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-app}
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_HTTP_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  auth-postgres:
+    image: postgres:16-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_DB: ${AUTH_DB_NAME:-auth_service}
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
+    ports:
+      - "${AUTH_DB_PORT:-5433}:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres} -d ${AUTH_DB_NAME:-auth_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  item-postgres:
+    image: postgres:16-alpine
+    container_name: item-postgres
+    environment:
+      POSTGRES_DB: ${ITEM_DB_NAME:-item_service}
+      POSTGRES_USER: ${ITEM_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ITEM_DB_PASSWORD:-postgres}
+    ports:
+      - "${ITEM_DB_PORT:-5434}:5432"
+    volumes:
+      - item_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ITEM_DB_USER:-postgres} -d ${ITEM_DB_NAME:-item_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  matching-postgres:
+    image: postgres:16-alpine
+    container_name: matching-postgres
+    environment:
+      POSTGRES_DB: ${MATCHING_DB_NAME:-matching_service}
+      POSTGRES_USER: ${MATCHING_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${MATCHING_DB_PASSWORD:-postgres}
+    ports:
+      - "${MATCHING_DB_PORT:-5435}:5432"
+    volumes:
+      - matching_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MATCHING_DB_USER:-postgres} -d ${MATCHING_DB_NAME:-matching_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  recovery-postgres:
+    image: postgres:16-alpine
+    container_name: recovery-postgres
+    environment:
+      POSTGRES_DB: ${RECOVERY_DB_NAME:-recovery_case_service}
+      POSTGRES_USER: ${RECOVERY_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${RECOVERY_DB_PASSWORD:-postgres}
+    ports:
+      - "${RECOVERY_DB_PORT:-5436}:5432"
+    volumes:
+      - recovery_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RECOVERY_DB_USER:-postgres} -d ${RECOVERY_DB_NAME:-recovery_case_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    environment:
+      <<: *backend-service-env
+      SERVICE_NAME: auth-service
+      SERVICE_VERSION: 0.1.0
+      SERVICE_PORT: 8000
+      DATABASE_URL: postgresql+psycopg://${AUTH_DB_USER:-postgres}:${AUTH_DB_PASSWORD:-postgres}@auth-postgres:5432/${AUTH_DB_NAME:-auth_service}
+      DATABASE_ECHO: "false"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-phase-1}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+    ports:
+      - "${AUTH_SERVICE_HTTP_PORT:-8001}:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      auth-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      <<: *http-healthcheck
+
+  item-service:
+    build:
+      context: ./item-service
+    container_name: item-service
+    environment:
+      <<: *backend-service-env
+      SERVICE_NAME: item-service
+      SERVICE_VERSION: 0.1.0
+      SERVICE_PORT: 8000
+      DATABASE_URL: postgresql+psycopg://${ITEM_DB_USER:-postgres}:${ITEM_DB_PASSWORD:-postgres}@item-postgres:5432/${ITEM_DB_NAME:-item_service}
+      DATABASE_ECHO: "false"
+      OUTBOX_PUBLISHER_ENABLED: "${ITEM_OUTBOX_PUBLISHER_ENABLED:-true}"
+      OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS: "${OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS:-1}"
+      OUTBOX_PUBLISH_BATCH_SIZE: "${OUTBOX_PUBLISH_BATCH_SIZE:-50}"
+      OUTBOX_PUBLISH_RETRY_DELAY_SECONDS: "${OUTBOX_PUBLISH_RETRY_DELAY_SECONDS:-2}"
+      OUTBOX_PUBLISH_MAX_ATTEMPTS: "${OUTBOX_PUBLISH_MAX_ATTEMPTS:-10}"
+    ports:
+      - "${ITEM_SERVICE_HTTP_PORT:-8002}:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      item-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      <<: *http-healthcheck
+
+  matching-service:
+    build:
+      context: ./matching-service
+    container_name: matching-service
+    environment:
+      <<: *backend-service-env
+      SERVICE_NAME: matching-service
+      SERVICE_VERSION: 0.1.0
+      SERVICE_PORT: 8000
+      DATABASE_URL: postgresql+psycopg://${MATCHING_DB_USER:-postgres}:${MATCHING_DB_PASSWORD:-postgres}@matching-postgres:5432/${MATCHING_DB_NAME:-matching_service}
+      DATABASE_ECHO: "false"
+      EVENT_CONSUMER_ENABLED: "${MATCHING_EVENT_CONSUMER_ENABLED:-true}"
+      OUTBOX_PUBLISHER_ENABLED: "${MATCHING_OUTBOX_PUBLISHER_ENABLED:-true}"
+      OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS: "${OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS:-1}"
+      OUTBOX_PUBLISH_BATCH_SIZE: "${OUTBOX_PUBLISH_BATCH_SIZE:-50}"
+      OUTBOX_PUBLISH_RETRY_DELAY_SECONDS: "${OUTBOX_PUBLISH_RETRY_DELAY_SECONDS:-2}"
+      OUTBOX_PUBLISH_MAX_ATTEMPTS: "${OUTBOX_PUBLISH_MAX_ATTEMPTS:-10}"
+    ports:
+      - "${MATCHING_SERVICE_HTTP_PORT:-8003}:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      matching-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      <<: *http-healthcheck
+
+  recovery-case-service:
+    build:
+      context: ./recovery-case-service
+    container_name: recovery-case-service
+    environment:
+      <<: *backend-service-env
+      SERVICE_NAME: recovery-case-service
+      SERVICE_VERSION: 0.1.0
+      SERVICE_PORT: 8000
+      DATABASE_URL: postgresql+psycopg://${RECOVERY_DB_USER:-postgres}:${RECOVERY_DB_PASSWORD:-postgres}@recovery-postgres:5432/${RECOVERY_DB_NAME:-recovery_case_service}
+      DATABASE_ECHO: "false"
+      EVENT_CONSUMER_ENABLED: "${RECOVERY_EVENT_CONSUMER_ENABLED:-true}"
+      OUTBOX_PUBLISHER_ENABLED: "${RECOVERY_OUTBOX_PUBLISHER_ENABLED:-true}"
+      OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS: "${OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS:-1}"
+      OUTBOX_PUBLISH_BATCH_SIZE: "${OUTBOX_PUBLISH_BATCH_SIZE:-50}"
+      OUTBOX_PUBLISH_RETRY_DELAY_SECONDS: "${OUTBOX_PUBLISH_RETRY_DELAY_SECONDS:-2}"
+      OUTBOX_PUBLISH_MAX_ATTEMPTS: "${OUTBOX_PUBLISH_MAX_ATTEMPTS:-10}"
+      ITEM_SERVICE_BASE_URL: http://item-service:8000
+      ITEM_SERVICE_TIMEOUT_SECONDS: "10"
+    ports:
+      - "${RECOVERY_CASE_SERVICE_HTTP_PORT:-8004}:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      recovery-postgres:
+        condition: service_healthy
+      item-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      <<: *http-healthcheck
+
+  gateway:
+    build:
+      context: ./gateway
+    container_name: gateway
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SERVICE_NAME: gateway
+      SERVICE_VERSION: 0.1.0
+      SERVICE_PORT: 8000
+      AUTH_SERVICE_BASE_URL: http://auth-service:8000
+      ITEM_SERVICE_BASE_URL: http://item-service:8000
+      MATCHING_SERVICE_BASE_URL: http://matching-service:8000
+      RECOVERY_CASE_SERVICE_BASE_URL: http://recovery-case-service:8000
+      DOWNSTREAM_TIMEOUT_SECONDS: "${GATEWAY_DOWNSTREAM_TIMEOUT_SECONDS:-10}"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-phase-1}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8000}:8000"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      item-service:
+        condition: service_healthy
+      matching-service:
+        condition: service_healthy
+      recovery-case-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      <<: *http-healthcheck
+
+volumes:
+  rabbitmq_data:
+  auth_postgres_data:
+  item_postgres_data:
+  matching_postgres_data:
+  recovery_postgres_data:

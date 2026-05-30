@@ -1,0 +1,195 @@
+{
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "default-dlx",
+      "pattern": ".*",
+      "apply-to": "queues",
+      "definition": {
+        "dead-letter-exchange": "domain.events.dlx"
+      },
+      "priority": 0
+    }
+  ],
+  "parameters": [],
+  "global_parameters": [],
+  "users": [],
+  "permissions": [],
+  "topic_permissions": [],
+  "queues": [
+    {
+      "name": "matching-service.item-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "recovery-case-service.match-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "matching-service.item-events.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "recovery-case-service.match-events.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "domain.events.audit",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "domain.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "domain.events.dlx",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "matching-service.item-events",
+      "destination_type": "queue",
+      "routing_key": "item.created",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "matching-service.item-events",
+      "destination_type": "queue",
+      "routing_key": "item.updated",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "recovery-case-service.match-events",
+      "destination_type": "queue",
+      "routing_key": "match.accepted",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events.dlx",
+      "vhost": "/",
+      "destination": "matching-service.item-events.dlq",
+      "destination_type": "queue",
+      "routing_key": "item.created",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events.dlx",
+      "vhost": "/",
+      "destination": "matching-service.item-events.dlq",
+      "destination_type": "queue",
+      "routing_key": "item.updated",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events.dlx",
+      "vhost": "/",
+      "destination": "recovery-case-service.match-events.dlq",
+      "destination_type": "queue",
+      "routing_key": "match.accepted",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "item.created",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "item.updated",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "match.suggested",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "match.accepted",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "match.rejected",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "recovery_case.opened",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "recovery_case.cancelled",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "domain.events.audit",
+      "destination_type": "queue",
+      "routing_key": "recovery_case.completed",
+      "arguments": {}
+    }
+  ]
+}
