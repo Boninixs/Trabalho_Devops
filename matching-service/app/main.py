@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.logging import RequestLoggingMiddleware, configure_logging, get_logger
+from app.core.metrics import register_metrics
 from app.messaging.consumer import ItemEventsConsumer
 from app.messaging.publisher import OutboxPublisher
 
@@ -16,6 +17,7 @@ configure_logging(service_name=settings.service_name, log_level=settings.log_lev
 logger = get_logger(__name__)
 item_events_consumer = ItemEventsConsumer()
 outbox_publisher = OutboxPublisher()
+swagger_enabled = settings.is_swagger_enabled()
 
 
 @asynccontextmanager
@@ -48,6 +50,11 @@ app = FastAPI(
     description="Matching service for LOST and FOUND item suggestions.",
     version=settings.service_version,
     lifespan=lifespan,
+    docs_url="/docs" if swagger_enabled else None,
+    redoc_url="/redoc" if swagger_enabled else None,
+    openapi_url="/openapi.json" if swagger_enabled else None,
 )
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)
+if settings.metrics_enabled:
+    register_metrics(app)

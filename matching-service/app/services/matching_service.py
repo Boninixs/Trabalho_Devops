@@ -10,6 +10,11 @@ from app.core.exceptions import (
     InvalidMatchError,
     MatchNotFoundError,
 )
+from app.core.metrics import (
+    record_match_decision,
+    record_match_event_enqueued,
+    record_matches_suggested,
+)
 from app.mappers.match_mapper import to_match_event_payload
 from app.messaging.idempotency import has_been_processed, register_processed_event
 from app.messaging.outbox import enqueue_broker_message
@@ -72,14 +77,18 @@ def consume_item_event(session: Session, envelope: EventEnvelope) -> list[MatchS
     if has_been_processed(session, typed_envelope):
         return []
 
+    suggested_count = 0
     item_projection, is_newer_event = upsert_item_projection(session, typed_envelope)
     if is_newer_event:
         expire_invalid_matches_for_item(session, item_projection.id)
         if is_item_eligible(item_projection):
-            generate_match_suggestions_for_item(session, item_projection)
+            suggested_count = generate_match_suggestions_for_item(session, item_projection)
 
     register_processed_event(session, typed_envelope)
     session.commit()
+    if suggested_count:
+        record_matches_suggested(suggested_count)
+        record_match_event_enqueued(event_type="MatchSuggested", count=suggested_count)
     return list_suggested_matches_for_item(session, item_projection.id)
 
 
@@ -98,6 +107,8 @@ def accept_match(
     record_match_event(session, suggestion, event_type="MatchAccepted")
     session.commit()
     session.refresh(suggestion)
+    record_match_decision(decision="accepted")
+    record_match_event_enqueued(event_type="MatchAccepted")
     return suggestion
 
 
@@ -116,6 +127,8 @@ def reject_match(
     record_match_event(session, suggestion, event_type="MatchRejected")
     session.commit()
     session.refresh(suggestion)
+    record_match_decision(decision="rejected")
+    record_match_event_enqueued(event_type="MatchRejected")
     return suggestion
 
 
@@ -200,7 +213,8 @@ def expire_invalid_matches_for_item(session: Session, item_id: UUID) -> None:
 def generate_match_suggestions_for_item(
     session: Session,
     item_projection: ItemProjection,
-) -> None:
+) -> int:
+    suggested_count = 0
     candidate_classification = (
         ItemClassification.FOUND
         if item_projection.classification == ItemClassification.LOST
@@ -244,6 +258,7 @@ def generate_match_suggestions_for_item(
             add_match_suggestion(session, suggestion)
             session.flush()
             record_match_event(session, suggestion, event_type="MatchSuggested")
+            suggested_count += 1
             continue
 
         if existing.status == MatchStatus.SUGGESTED:
@@ -260,6 +275,9 @@ def generate_match_suggestions_for_item(
             existing.updated_at = utc_now()
             session.flush()
             record_match_event(session, existing, event_type="MatchSuggested")
+            suggested_count += 1
+
+    return suggested_count
 
 
 def normalize_pair(

@@ -9,6 +9,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - `item-service`: cadastro, consulta, atualização e histórico de itens.
 - `matching-service`: consome eventos de itens e sugere matches entre `LOST` e `FOUND`.
 - `recovery-case-service`: consome `MatchAccepted` e orquestra a recuperação.
+- `prometheus`: coleta métricas do `matching-service`.
+- `grafana`: exibe dashboard do `matching-service`.
 - Um PostgreSQL por serviço e RabbitMQ para eventos assíncronos.
 
 ## Principais características
@@ -20,6 +22,9 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - Saga de recuperação entre `recovery-case-service` e `item-service`.
 - JWT no `gateway` e correlação por `X-Correlation-ID`.
 - DLQ para consumidores e retry finito na publicação de eventos.
+- Swagger/OpenAPI do `matching-service` controlado por variável de ambiente.
+- Métricas Prometheus expostas pelo `matching-service` em `/metrics`.
+- Dashboard Grafana provisionado automaticamente para o `matching-service`.
 
 ## Stack
 
@@ -29,6 +34,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - Alembic
 - PostgreSQL
 - RabbitMQ
+- Prometheus
+- Grafana
 - Docker Compose
 - Pytest
 
@@ -41,6 +48,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 ├── item-service/
 ├── matching-service/
 ├── recovery-case-service/
+├── infra/grafana/
+├── infra/prometheus/
 ├── infra/rabbitmq/
 ├── tests/e2e/
 ├── scripts/
@@ -81,10 +90,65 @@ docker compose ps
 - Auth: `http://localhost:8001`
 - Item: `http://localhost:8002`
 - Matching: `http://localhost:8003`
+- Matching Swagger: `http://localhost:8003/docs`, quando habilitado por ambiente
 - Recovery Case: `http://localhost:8004`
 - RabbitMQ Management: `http://localhost:15672`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
+
+Credenciais padrão do Grafana:
+
+- Usuário: `${GRAFANA_ADMIN_USER:-admin}`
+- Senha: `${GRAFANA_ADMIN_PASSWORD:-admin}`
 
 As migrações dos serviços com banco são executadas automaticamente na inicialização dos containers.
+
+## Swagger do Matching Service
+
+O `matching-service` expõe a documentação interativa do FastAPI somente quando o ambiente atual corresponde ao ambiente configurado para liberar Swagger.
+
+Rotas afetadas:
+
+- `GET /docs`: interface Swagger UI.
+- `GET /redoc`: interface ReDoc.
+- `GET /openapi.json`: schema OpenAPI bruto.
+
+No `docker-compose.yml`, a variável usada é `MATCHING_SWAGGER_ENV`, definida no `.env` raiz:
+
+```env
+ENVIRONMENT=development
+MATCHING_SWAGGER_ENV=DEV
+```
+
+Dentro do container do `matching-service`, essa variável é repassada como `SWAGGER_ENV`:
+
+```env
+SWAGGER_ENV=DEV
+```
+
+Regras de exemplo:
+
+- `ENVIRONMENT=development` com `MATCHING_SWAGGER_ENV=DEV` habilita `/docs`, `/redoc` e `/openapi.json`.
+- `ENVIRONMENT=production` com `MATCHING_SWAGGER_ENV=DEV` bloqueia `/docs`, `/redoc` e `/openapi.json`.
+- `ENVIRONMENT=production` com `MATCHING_SWAGGER_ENV=PROD` habilita `/docs`, `/redoc` e `/openapi.json` em produção.
+
+O valor é normalizado pelo serviço, então `development` é tratado como `DEV` e `production` como `PROD`.
+
+## Monitoramento
+
+O monitoramento provisionado nesta stack cobre o `matching-service`.
+
+- O `matching-service` expõe métricas Prometheus em `GET /metrics` diretamente na porta do serviço.
+- O Prometheus faz scrape de `http://matching-service:8000/metrics` dentro da rede Docker.
+- O Grafana sobe com datasource para o Prometheus já configurado.
+- O dashboard `Matching Service Overview` é carregado automaticamente no Grafana.
+
+Arquivos principais:
+
+- `infra/prometheus/prometheus.yml`
+- `infra/grafana/provisioning/datasources/prometheus.yml`
+- `infra/grafana/provisioning/dashboards/dashboards.yml`
+- `infra/grafana/dashboards/matching-service-overview.json`
 
 ### Migrações manuais
 
@@ -93,6 +157,38 @@ Se precisar rodar manualmente:
 ```bash
 ./scripts/migrate_all.sh
 ```
+
+## CI/CD e proteção da main
+
+O repositório possui pipelines em `.github/workflows/` para validar pull requests e proteger a integração dos serviços.
+O `matching-service` possui pipeline dedicada em `.github/workflows/matching-service-ci.yml` com build Docker e publicação no DockerHub após merge na `main`.
+
+- A pipeline dedicada do `matching-service` roda em `pull_request` para `main` e `develop`, em `push` para `main` e `develop`, e também manualmente por `workflow_dispatch`.
+- Cada microservice/gateway executa seus testes unitários em um job separado: `auth-service`, `item-service`, `matching-service`, `recovery-case-service` e `gateway`.
+- O job agregado `unit-tests / required` só passa quando todos os jobs unitários passam.
+- A pipeline do `matching-service` valida os testes em PR, faz build da imagem Docker sem push no PR e publica a imagem somente em `push` para `main`.
+- O evento `push` na `main` representa o pós-merge do PR quando a branch `main` está protegida contra pushes diretos.
+
+Secrets necessários no GitHub para publicar a imagem do `matching-service` no DockerHub:
+
+- `DOCKERHUB_USERNAME`: usuário ou namespace do DockerHub onde a imagem será publicada.
+- `DOCKERHUB_TOKEN`: access token do DockerHub com permissão de push.
+
+Imagem publicada após merge na `main`:
+
+- `docker.io/<DOCKERHUB_USERNAME>/matching-service:latest`
+- `docker.io/<DOCKERHUB_USERNAME>/matching-service:sha-<commit-curto>`
+
+Para bloquear pushes diretos na `main`, configure no GitHub um Branch Protection Rule ou Ruleset para a branch `main`:
+
+- Ative `Require a pull request before merging`.
+- Ative `Require status checks to pass before merging`.
+- Marque como obrigatório o check `unit-tests / required`.
+- Ative `Require branches to be up to date before merging`, se quiser exigir PR atualizado com a `main` antes do merge.
+- Desative force pushes e branch deletion.
+- Não permita bypass da regra, exceto se houver um administrador explicitamente responsável por emergências.
+
+Essa configuração é necessária porque o GitHub Actions valida a qualidade do PR, mas o bloqueio de push direto é uma regra da plataforma GitHub, não do arquivo YAML da pipeline.
 
 ## Como testar
 

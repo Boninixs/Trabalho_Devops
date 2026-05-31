@@ -7,6 +7,19 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _normalize_environment(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_")
+    aliases = {
+        "development": "dev",
+        "develop": "dev",
+        "local": "dev",
+        "dev": "dev",
+        "production": "prod",
+        "prod": "prod",
+    }
+    return aliases.get(normalized, normalized)
+
+
 class Settings(BaseSettings):
     """"
     Classe de configuração da aplicação, que carrega as variáveis de ambiente e fornece uma interface para acessar essas 
@@ -22,12 +35,17 @@ class Settings(BaseSettings):
     service_version: str = Field(default="0.1.0", alias="SERVICE_VERSION")
     service_port: int = Field(default=8000, alias="SERVICE_PORT")
     environment: str = Field(default="development", alias="ENVIRONMENT")
+    swagger_env: str = Field(default="DEV", alias="SWAGGER_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5435/matching_service",
         alias="DATABASE_URL",
     )
     database_echo: bool = Field(default=False, alias="DATABASE_ECHO")
+    metrics_enabled: bool = Field(
+        default=True,
+        alias="METRICS_ENABLED",
+    )
     rabbitmq_url: str = Field(
         default="amqp://app:app@localhost:5672/",
         alias="RABBITMQ_URL",
@@ -68,6 +86,10 @@ class Settings(BaseSettings):
         default="matching-service.item-events",
         alias="RABBITMQ_ITEM_EVENTS_QUEUE",
     )
+
+    def is_swagger_enabled(self) -> bool:
+        """Retorna True quando o ambiente atual corresponde ao ambiente liberado para Swagger."""
+        return _normalize_environment(self.environment) == _normalize_environment(self.swagger_env)
 
 
 @lru_cache
