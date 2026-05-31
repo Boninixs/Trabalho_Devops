@@ -5,6 +5,7 @@ são incluídas. Ele também define o ciclo de vida da aplicação, registrando 
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -35,5 +36,6 @@ app = FastAPI(
     version=settings.service_version,
     lifespan=lifespan,
 )
+Instrumentator().instrument(app).expose(app)
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)

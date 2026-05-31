@@ -232,7 +232,7 @@ def apply_status_transition(
     reason: str,
     actor_user_id: UUID | None,
     transition_mode: str,
-) -> None:
+) -> ItemStatus:
     current_status = item.status
     if current_status == target_status:
         raise InvalidItemTransitionError("Status informado é igual ao status atual")
@@ -258,6 +258,7 @@ def apply_status_transition(
         occurred_at=item.updated_at,
     )
     record_item_event(session, item, event_type="ItemUpdated")
+    return current_status
 
 
 def validate_transition(
@@ -356,4 +357,3 @@ def record_item_event(session: Session, item: Item, *, event_type: str) -> None:
         exchange_name=settings.rabbitmq_events_exchange,
     )
     enqueue_broker_message(session, message)
-
