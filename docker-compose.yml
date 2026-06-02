@@ -140,6 +140,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${ITEM_DB_USER:-postgres}:${ITEM_DB_PASSWORD:-postgres}@item-postgres:5432/${ITEM_DB_NAME:-item_service}
       DATABASE_ECHO: "false"
       OUTBOX_PUBLISHER_ENABLED: "${ITEM_OUTBOX_PUBLISHER_ENABLED:-true}"
+      METRICS_ENABLED: "${ITEM_METRICS_ENABLED:-true}"
       OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS: "${OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS:-1}"
       OUTBOX_PUBLISH_BATCH_SIZE: "${OUTBOX_PUBLISH_BATCH_SIZE:-50}"
       OUTBOX_PUBLISH_RETRY_DELAY_SECONDS: "${OUTBOX_PUBLISH_RETRY_DELAY_SECONDS:-2}"
@@ -154,6 +155,38 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
       <<: *http-healthcheck
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "${PROMETHEUS_HTTP_PORT:-9090}:9090"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      item-service:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_HTTP_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_started
 
   matching-service:
     build:
@@ -253,3 +286,5 @@ volumes:
   item_postgres_data:
   matching_postgres_data:
   recovery_postgres_data:
+  prometheus_data:
+  grafana_data:
