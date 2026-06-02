@@ -103,6 +103,7 @@ Credenciais padrão do Grafana:
 
 As migrações dos serviços com banco são executadas automaticamente na inicialização dos containers.
 
+<<<<<<< HEAD
 ## Swagger do Matching Service
 
 O `matching-service` expõe a documentação interativa do FastAPI somente quando o ambiente atual corresponde ao ambiente configurado para liberar Swagger.
@@ -142,13 +143,27 @@ O monitoramento provisionado nesta stack cobre o `matching-service`.
 - O Prometheus faz scrape de `http://matching-service:8000/metrics` dentro da rede Docker.
 - O Grafana sobe com datasource para o Prometheus já configurado.
 - O dashboard `Matching Service Overview` é carregado automaticamente no Grafana.
+=======
+## Monitoramento
+
+O monitoramento provisionado nesta stack cobre o `item-service`.
+
+- O `item-service` expõe métricas Prometheus em `GET /metrics` diretamente na porta do serviço.
+- O Prometheus faz scrape de `http://item-service:8000/metrics` dentro da rede Docker.
+- O Grafana sobe com datasource para o Prometheus já configurado.
+- Um dashboard inicial chamado `Item Service Overview` é carregado automaticamente no Grafana.
+>>>>>>> b6b33ef (feat: pipeline and observability)
 
 Arquivos principais:
 
 - `infra/prometheus/prometheus.yml`
 - `infra/grafana/provisioning/datasources/prometheus.yml`
 - `infra/grafana/provisioning/dashboards/dashboards.yml`
+<<<<<<< HEAD
 - `infra/grafana/dashboards/matching-service-overview.json`
+=======
+- `infra/grafana/dashboards/item-service-overview.json`
+>>>>>>> b6b33ef (feat: pipeline and observability)
 
 ### Migrações manuais
 
@@ -160,6 +175,7 @@ Se precisar rodar manualmente:
 
 ## CI/CD e proteção da main
 
+<<<<<<< HEAD
 O repositório possui pipelines em `.github/workflows/` para validar pull requests e proteger a integração dos serviços.
 O `matching-service` possui pipeline dedicada em `.github/workflows/matching-service-ci.yml` com build Docker e publicação no DockerHub após merge na `main`.
 
@@ -178,6 +194,14 @@ Imagem publicada após merge na `main`:
 
 - `docker.io/<DOCKERHUB_USERNAME>/matching-service:latest`
 - `docker.io/<DOCKERHUB_USERNAME>/matching-service:sha-<commit-curto>`
+=======
+O repositório possui pipeline de CI em `.github/workflows/ci.yml` para validar pull requests para a `main`.
+Esta configuração cobre o gate de CI; a etapa de CD deve ser adicionada quando houver registry, ambiente de deploy e secrets definidos.
+
+- A pipeline roda em `pull_request` para `main`, em `push` para `main` e também manualmente por `workflow_dispatch`.
+- Cada microservice/gateway executa seus testes unitários em um job separado: `auth-service`, `item-service`, `matching-service`, `recovery-case-service` e `gateway`.
+- O job agregado `unit-tests / required` só passa quando todos os jobs unitários passam.
+>>>>>>> b6b33ef (feat: pipeline and observability)
 
 Para bloquear pushes diretos na `main`, configure no GitHub um Branch Protection Rule ou Ruleset para a branch `main`:
 

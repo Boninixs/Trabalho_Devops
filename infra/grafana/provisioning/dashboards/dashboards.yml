@@ -1,9 +1,15 @@
 apiVersion: 1
 
 providers:
+<<<<<<< HEAD
   - name: microservices
     orgId: 1
     folder: Microservices
+=======
+  - name: item-service
+    orgId: 1
+    folder: Item Service
+>>>>>>> b6b33ef (feat: pipeline and observability)
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

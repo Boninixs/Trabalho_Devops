@@ -37,6 +37,10 @@ class Settings(BaseSettings):
         default=True,
         alias="OUTBOX_PUBLISHER_ENABLED",
     )
+    metrics_enabled: bool = Field(
+        default=True,
+        alias="METRICS_ENABLED",
+    )
     outbox_publish_poll_interval_seconds: float = Field(
         default=1.0,
         alias="OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS",
