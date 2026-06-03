@@ -11,6 +11,7 @@ settings = get_settings()
 configure_logging(service_name=settings.service_name, log_level=settings.log_level)
 logger = get_logger(__name__)
 outbox_publisher = OutboxPublisher()
+swagger_enabled = settings.is_swagger_enabled()
 
 
 @asynccontextmanager
@@ -30,6 +31,9 @@ app = FastAPI(
     description="Item lifecycle service and source of ItemCreated and ItemUpdated events.",
     version=settings.service_version,
     lifespan=lifespan,
+    docs_url="/docs" if swagger_enabled else None,
+    redoc_url="/redoc" if swagger_enabled else None,
+    openapi_url="/openapi.json" if swagger_enabled else None,
 )
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)

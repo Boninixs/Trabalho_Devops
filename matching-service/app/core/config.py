@@ -14,8 +14,14 @@ def _normalize_environment(value: str) -> str:
         "develop": "dev",
         "local": "dev",
         "dev": "dev",
+        "homol": "homol",
+        "homolog": "homol",
+        "homologation": "homol",
+        "staging": "homol",
+        "hml": "homol",
         "production": "prod",
         "prod": "prod",
+        "main": "prod",
     }
     return aliases.get(normalized, normalized)
 

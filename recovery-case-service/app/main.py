@@ -14,10 +14,7 @@ configure_logging(service_name=settings.service_name, log_level=settings.log_lev
 logger = get_logger(__name__)
 match_accepted_consumer = MatchAcceptedConsumer()
 outbox_publisher = OutboxPublisher()
-
-
-def docs_url(path: str) -> str | None:
-    return path if settings.environment.lower() in {"dev", "development", "local"} else None
+swagger_enabled = settings.is_swagger_enabled()
 
 
 @asynccontextmanager
@@ -42,9 +39,9 @@ app = FastAPI(
     description="Recovery case service with saga orchestration for item recovery flows.",
     version=settings.service_version,
     lifespan=lifespan,
-    docs_url=docs_url("/docs"),
-    redoc_url=docs_url("/redoc"),
-    openapi_url=docs_url("/openapi.json"),
+    docs_url="/docs" if swagger_enabled else None,
+    redoc_url="/redoc" if swagger_enabled else None,
+    openapi_url="/openapi.json" if swagger_enabled else None,
 )
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)
