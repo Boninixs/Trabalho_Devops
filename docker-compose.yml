@@ -198,6 +198,7 @@ services:
       SERVICE_PORT: 8000
       DATABASE_URL: postgresql+psycopg://${MATCHING_DB_USER:-postgres}:${MATCHING_DB_PASSWORD:-postgres}@matching-postgres:5432/${MATCHING_DB_NAME:-matching_service}
       DATABASE_ECHO: "false"
+      SWAGGER_ENV: "${MATCHING_SWAGGER_ENV:-DEV}"
       EVENT_CONSUMER_ENABLED: "${MATCHING_EVENT_CONSUMER_ENABLED:-true}"
       OUTBOX_PUBLISHER_ENABLED: "${MATCHING_OUTBOX_PUBLISHER_ENABLED:-true}"
       METRICS_ENABLED: "${MATCHING_METRICS_ENABLED:-true}"
@@ -279,32 +280,6 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
       <<: *http-healthcheck
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-    depends_on:
-      - auth-service
-      - item-service
-      - matching-service
-      - recovery-case-service
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
 
 volumes:
   rabbitmq_data:
