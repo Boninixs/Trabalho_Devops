@@ -28,6 +28,10 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
     database_echo: bool = Field(default=False, alias="DATABASE_ECHO")
+    metrics_enabled: bool = Field(
+        default=True,
+        alias="METRICS_ENABLED",
+    )
     rabbitmq_url: str = Field(
         default="amqp://app:app@localhost:5672/",
         alias="RABBITMQ_URL",

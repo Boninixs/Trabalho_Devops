@@ -73,11 +73,11 @@
       },
       "targets": [
         {
-          "expr": "max(up{job=\"item-service\"})",
+          "expr": "max(up{job=\"matching-service\"})",
           "refId": "A"
         }
       ],
-      "title": "Item Service Up",
+      "title": "Matching Service Up",
       "type": "stat"
     },
     {
@@ -115,7 +115,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(item_service_http_requests_total[5m]))",
+          "expr": "sum(rate(matching_service_http_requests_total[5m]))",
           "refId": "A"
         }
       ],
@@ -157,7 +157,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(item_service_http_request_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(matching_service_http_request_duration_seconds_bucket[5m])) by (le))",
           "refId": "A"
         }
       ],
@@ -199,11 +199,11 @@
       },
       "targets": [
         {
-          "expr": "increase(item_service_items_created_total[24h])",
+          "expr": "increase(matching_service_matches_suggested_total[24h])",
           "refId": "A"
         }
       ],
-      "title": "Items Created (24h)",
+      "title": "Matches Suggested (24h)",
       "type": "stat"
     },
     {
@@ -235,7 +235,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(item_service_http_requests_total[5m])) by (path)",
+          "expr": "sum(rate(matching_service_http_requests_total[5m])) by (path)",
           "legendFormat": "{{path}}",
           "refId": "A"
         }
@@ -272,12 +272,12 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(item_service_item_status_transitions_total[24h])) by (to_status)",
-          "legendFormat": "{{to_status}}",
+          "expr": "sum(increase(matching_service_item_events_consumed_total[24h])) by (event_type, result)",
+          "legendFormat": "{{event_type}} / {{result}}",
           "refId": "A"
         }
       ],
-      "title": "Status Transitions by Target Status (24h)",
+      "title": "Item Events Consumed (24h)",
       "type": "timeseries"
     },
     {
@@ -309,12 +309,49 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(item_service_item_events_enqueued_total[24h])) by (event_type)",
+          "expr": "sum(increase(matching_service_match_decisions_total[24h])) by (decision)",
+          "legendFormat": "{{decision}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Match Decisions (24h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(matching_service_match_events_enqueued_total[24h])) by (event_type)",
           "legendFormat": "{{event_type}}",
           "refId": "A"
         }
       ],
-      "title": "Outbox Events Enqueued by Type (24h)",
+      "title": "Match Events Enqueued (24h)",
       "type": "timeseries"
     }
   ],
@@ -322,9 +359,8 @@
   "schemaVersion": 39,
   "style": "dark",
   "tags": [
-    "item-service",
-    "prometheus",
-    "grafana"
+    "matching-service",
+    "microservices"
   ],
   "templating": {
     "list": []
@@ -335,8 +371,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Item Service Overview",
-  "uid": "item-service-overview",
+  "title": "Matching Service Overview",
+  "uid": "matching-service-overview",
   "version": 1,
   "weekStart": ""
 }

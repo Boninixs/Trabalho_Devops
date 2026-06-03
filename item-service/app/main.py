@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.logging import RequestLoggingMiddleware, configure_logging, get_logger
-from app.core.metrics import register_metrics
 from app.messaging.publisher import OutboxPublisher
 
 settings = get_settings()
@@ -34,5 +33,3 @@ app = FastAPI(
 )
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)
-if settings.metrics_enabled:
-    register_metrics(app)
