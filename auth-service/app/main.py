@@ -14,6 +14,7 @@ from app.core.logging import RequestLoggingMiddleware, configure_logging, get_lo
 settings = get_settings()
 configure_logging(service_name=settings.service_name, log_level=settings.log_level)
 logger = get_logger(__name__)
+swagger_enabled = settings.is_swagger_enabled()
 
 
 @asynccontextmanager

@@ -22,7 +22,7 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - Saga de recuperação entre `recovery-case-service` e `item-service`.
 - JWT no `gateway` e correlação por `X-Correlation-ID`.
 - DLQ para consumidores e retry finito na publicação de eventos.
-- Swagger/OpenAPI do `matching-service` controlado por variável de ambiente.
+- Swagger/OpenAPI dos microsserviços controlado por variável de ambiente.
 - Métricas Prometheus expostas pelo `matching-service` em `/metrics`.
 - Dashboard Grafana provisionado automaticamente para o `matching-service`.
 
@@ -90,7 +90,7 @@ docker compose ps
 - Auth: `http://localhost:8001`
 - Item: `http://localhost:8002`
 - Matching: `http://localhost:8003`
-- Matching Swagger: `http://localhost:8003/docs`, quando habilitado por ambiente
+- Swagger dos servicos: `/docs`, quando habilitado por ambiente
 - Recovery Case: `http://localhost:8004`
 - RabbitMQ Management: `http://localhost:15672`
 - Prometheus: `http://localhost:9090`
@@ -103,9 +103,9 @@ Credenciais padrão do Grafana:
 
 As migrações dos serviços com banco são executadas automaticamente na inicialização dos containers.
 
-## Swagger do Matching Service
+## Swagger dos microsservicos
 
-O `matching-service` expõe a documentação interativa do FastAPI somente quando o ambiente atual corresponde ao ambiente configurado para liberar Swagger.
+Os microsserviços expõem a documentação interativa do FastAPI somente quando o ambiente atual corresponde ao ambiente configurado para liberar Swagger.
 
 Rotas afetadas:
 
@@ -128,11 +128,11 @@ SWAGGER_ENV=DEV
 
 Regras de exemplo:
 
-- `ENVIRONMENT=development` com `MATCHING_SWAGGER_ENV=DEV` habilita `/docs`, `/redoc` e `/openapi.json`.
-- `ENVIRONMENT=production` com `MATCHING_SWAGGER_ENV=DEV` bloqueia `/docs`, `/redoc` e `/openapi.json`.
-- `ENVIRONMENT=production` com `MATCHING_SWAGGER_ENV=PROD` habilita `/docs`, `/redoc` e `/openapi.json` em produção.
+- DEV: `ENVIRONMENT=DEV` com `SWAGGER_ENV=DEV` habilita `/docs`, `/redoc` e `/openapi.json`.
+- HOMOL: `ENVIRONMENT=HOMOL` com `SWAGGER_ENV=DEV` bloqueia `/docs`, `/redoc` e `/openapi.json`.
+- `SWAGGER_ENV=DEV` controla em qual ambiente o Swagger fica disponível.
 
-O valor é normalizado pelo serviço, então `development` é tratado como `DEV` e `production` como `PROD`.
+O valor é normalizado pelo serviço, então `development`, `develop`, `local` e `dev` são tratados como `DEV`; `homol`, `homolog`, `homologation`, `staging` e `hml` são tratados como `HOMOL`; e `production`, `prod` e `main` são tratados como `PROD`.
 
 ## Monitoramento
 
