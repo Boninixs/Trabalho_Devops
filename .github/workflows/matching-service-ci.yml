@@ -3,13 +3,13 @@ name: Matching Service CI
 on:
   pull_request:
     branches:
-      - main
+      - develop
     paths:
       - "matching-service/**"
       - ".github/workflows/matching-service-ci.yml"
   push:
     branches:
-      - main
+      - develop
     paths:
       - "matching-service/**"
       - ".github/workflows/matching-service-ci.yml"
