@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   validate-pr:
-    name: conventional commits / pull request
+    name: semantic release preview / pull request
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Validate Conventional Commits and preview semantic tag
+      - name: Preview semantic tag
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -50,13 +50,13 @@ jobs:
           import os
           import re
           import subprocess
-          import sys
           import urllib.request
 
-          conventional_re = re.compile(
-              r"^(?P<type>feat|fix|perf|docs|style|refactor|test|build|ci|chore|revert)"
-              r"(?P<scope>\([A-Za-z0-9._/-]+\))?"
-              r"(?P<breaking>!)?: .+$"
+          semantic_re = re.compile(
+              r"^(?P<type>[a-z][a-z0-9-]*)"
+              r"(?P<scope>\([^)\r\n]+\))?"
+              r"(?P<breaking>!)?:\s*(?P<description>\S.*)$",
+              re.IGNORECASE,
           )
           breaking_re = re.compile(r"(?m)^BREAKING[- ]CHANGE: .+")
 
@@ -83,17 +83,26 @@ jobs:
                   return major, minor + 1, 0
               return major, minor, patch + 1
 
+          def normalize_subject(message):
+              subject = message.splitlines()[0].strip()
+              if (
+                  len(subject) >= 2
+                  and subject[0] == subject[-1]
+                  and subject[0] in {'"', "'"}
+              ):
+                  return subject[1:-1].strip()
+              return subject
+
           def bump_for_message(message):
-              first_line = message.splitlines()[0].strip()
-              match = conventional_re.match(first_line)
+              match = semantic_re.fullmatch(normalize_subject(message))
               if not match:
                   return None
               if match.group("breaking") or breaking_re.search(message):
                   return "major"
-              commit_type = match.group("type")
+              commit_type = match.group("type").lower()
               if commit_type == "feat":
                   return "minor"
-              if commit_type in {"fix", "perf"}:
+              if commit_type == "fix":
                   return "patch"
               return None
 
@@ -124,14 +133,14 @@ jobs:
               first_line = message.splitlines()[0].strip()
               return first_line.startswith("Merge ")
 
-          errors = []
           candidates = []
+          ignored = []
 
           pr_title = os.environ["PR_TITLE"].strip()
-          if not conventional_re.match(pr_title):
-              errors.append(f"PR title is not Conventional Commit compliant: {pr_title!r}")
-          else:
+          if bump_for_message(pr_title):
               candidates.append(("PR title", pr_title))
+          else:
+              ignored.append(("PR title", pr_title))
 
           commits = fetch_pr_commits()
           for commit in commits:
@@ -140,10 +149,10 @@ jobs:
               first_line = message.splitlines()[0].strip()
               if is_ignored_commit(message):
                   continue
-              if not conventional_re.match(first_line):
-                  errors.append(f"Commit {sha} is not Conventional Commit compliant: {first_line!r}")
-              else:
+              if bump_for_message(message):
                   candidates.append((sha, message))
+              else:
+                  ignored.append((sha, first_line))
 
           latest_tag, current = latest_semver_tag()
           priority = {None: 0, "patch": 1, "minor": 2, "major": 3}
@@ -157,7 +166,8 @@ jobs:
               "## Semantic tag preview",
               "",
               f"Latest semantic tag: `{latest_tag or 'none'}`",
-              f"Conventional commit candidates evaluated: `{len(candidates)}`",
+              f"Semantic release candidates: `{len(candidates)}`",
+              f"Messages ignored without blocking the pipeline: `{len(ignored)}`",
           ]
           if bump:
               next_tag = "v%d.%d.%d" % next_version(current, bump)
@@ -167,18 +177,15 @@ jobs:
               summary_lines.append("Detected bump: `none`")
               summary_lines.append("No semantic tag would be created from this PR.")
 
-          if errors:
+          if ignored:
               summary_lines.append("")
-              summary_lines.append("### Conventional Commit errors")
-              summary_lines.extend(f"- {error}" for error in errors)
+              summary_lines.append("### Ignored messages")
+              summary_lines.extend(
+                  f"- `{source}`: {message!r}" for source, message in ignored
+              )
 
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
               summary.write("\n".join(summary_lines) + "\n")
-
-          if errors:
-              for error in errors:
-                  print(f"::error::{error}")
-              sys.exit(1)
           PY
 
   create-tag:
@@ -196,7 +203,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Create semantic tag from Conventional Commits
+      - name: Create semantic tag from release semantics
         run: |
           python <<'PY'
           import os
@@ -204,10 +211,11 @@ jobs:
           import subprocess
           import sys
 
-          conventional_re = re.compile(
-              r"^(?P<type>feat|fix|perf|docs|style|refactor|test|build|ci|chore|revert)"
-              r"(?P<scope>\([A-Za-z0-9._/-]+\))?"
-              r"(?P<breaking>!)?: .+$"
+          semantic_re = re.compile(
+              r"^(?P<type>[a-z][a-z0-9-]*)"
+              r"(?P<scope>\([^)\r\n]+\))?"
+              r"(?P<breaking>!)?:\s*(?P<description>\S.*)$",
+              re.IGNORECASE,
           )
           breaking_re = re.compile(r"(?m)^BREAKING[- ]CHANGE: .+")
 
@@ -234,17 +242,26 @@ jobs:
                   return major, minor + 1, 0
               return major, minor, patch + 1
 
+          def normalize_subject(message):
+              subject = message.splitlines()[0].strip()
+              if (
+                  len(subject) >= 2
+                  and subject[0] == subject[-1]
+                  and subject[0] in {'"', "'"}
+              ):
+                  return subject[1:-1].strip()
+              return subject
+
           def bump_for_message(message):
-              first_line = message.splitlines()[0].strip()
-              match = conventional_re.match(first_line)
+              match = semantic_re.fullmatch(normalize_subject(message))
               if not match:
                   return None
               if match.group("breaking") or breaking_re.search(message):
                   return "major"
-              commit_type = match.group("type")
+              commit_type = match.group("type").lower()
               if commit_type == "feat":
                   return "minor"
-              if commit_type in {"fix", "perf"}:
+              if commit_type == "fix":
                   return "patch"
               return None
 
@@ -260,34 +277,32 @@ jobs:
 
           records = [record for record in raw_log.split("\x1e") if record.strip()]
           messages = []
-          errors = []
+          ignored = []
           for record in records:
               sha, subject, body = record.split("\x1f", 2)
               subject = subject.strip()
               if is_ignored_commit(subject):
                   continue
               message = subject if not body.strip() else f"{subject}\n{body.strip()}"
-              if not conventional_re.match(subject):
-                  errors.append(f"Commit {sha[:7]} is not Conventional Commit compliant: {subject!r}")
-              else:
+              if bump_for_message(message):
                   messages.append(message)
+              else:
+                  ignored.append((sha[:7], subject))
 
           summary_lines = [
               "## Semantic tag creation",
               "",
               f"Latest semantic tag: `{latest_tag or 'none'}`",
-              f"Commits evaluated: `{len(messages)}`",
+              f"Semantic release candidates: `{len(messages)}`",
+              f"Commits ignored without blocking the pipeline: `{len(ignored)}`",
           ]
 
-          if errors:
+          if ignored:
               summary_lines.append("")
-              summary_lines.append("### Conventional Commit errors")
-              summary_lines.extend(f"- {error}" for error in errors)
-              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-                  summary.write("\n".join(summary_lines) + "\n")
-              for error in errors:
-                  print(f"::error::{error}")
-              sys.exit(1)
+              summary_lines.append("### Ignored commits")
+              summary_lines.extend(
+                  f"- `{sha}`: {subject!r}" for sha, subject in ignored
+              )
 
           priority = {None: 0, "patch": 1, "minor": 2, "major": 3}
           bump = None
@@ -301,7 +316,7 @@ jobs:
               summary_lines.append("No semantic tag was created.")
               with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
                   summary.write("\n".join(summary_lines) + "\n")
-              print("No feat/fix/perf/BREAKING CHANGE commits found. Skipping tag creation.")
+              print("No feat/fix/breaking change commits found. Skipping tag creation.")
               sys.exit(0)
 
           next_tag = "v%d.%d.%d" % next_version(current, bump)
