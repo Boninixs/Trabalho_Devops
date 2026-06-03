@@ -3,7 +3,7 @@ name: Semantic Tags
 on:
   pull_request:
     branches:
-      - main
+      - develop
     types:
       - opened
       - reopened
@@ -11,7 +11,7 @@ on:
       - edited
   push:
     branches:
-      - main
+      - develop
   workflow_dispatch:
 
 permissions:
@@ -183,7 +183,7 @@ jobs:
 
   create-tag:
     name: semantic tag / main
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
