@@ -23,9 +23,13 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - JWT no `gateway` e correlação por `X-Correlation-ID`.
 - DLQ para consumidores e retry finito na publicação de eventos.
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Swagger/OpenAPI do `matching-service` controlado por variável de ambiente.
 =======
 >>>>>>> 2133565 (fix: pipeline matching-service)
+=======
+- Swagger/OpenAPI do `matching-service` controlado por variável de ambiente.
+>>>>>>> 8cd677f (feat: add dockerhub deploy)
 - Métricas Prometheus expostas pelo `matching-service` em `/metrics`.
 - Dashboard Grafana provisionado automaticamente para o `matching-service`.
 
@@ -107,6 +111,9 @@ Credenciais padrão do Grafana:
 As migrações dos serviços com banco são executadas automaticamente na inicialização dos containers.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8cd677f (feat: add dockerhub deploy)
 ## Swagger do Matching Service
 
 O `matching-service` expõe a documentação interativa do FastAPI somente quando o ambiente atual corresponde ao ambiente configurado para liberar Swagger.
@@ -187,6 +194,7 @@ Se precisar rodar manualmente:
 ## CI/CD e proteção da main
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 O repositório possui pipelines em `.github/workflows/` para validar pull requests e proteger a integração dos serviços.
 O `matching-service` possui pipeline dedicada em `.github/workflows/matching-service-ci.yml` com build Docker e publicação no DockerHub após merge na `main`.
 
@@ -208,11 +216,30 @@ Imagem publicada após merge na `main`:
 =======
 O repositório possui pipeline de CI em `.github/workflows/ci.yml` para validar pull requests para a `main`.
 Esta configuração cobre o gate de CI; a etapa de CD deve ser adicionada quando houver registry, ambiente de deploy e secrets definidos.
+=======
+O repositório possui pipelines em `.github/workflows/` para validar pull requests e proteger a integração dos serviços.
+O `matching-service` possui pipeline dedicada em `.github/workflows/matching-service-ci.yml` com build Docker e publicação no DockerHub após merge na `main`.
+>>>>>>> 8cd677f (feat: add dockerhub deploy)
 
-- A pipeline roda em `pull_request` para `main`, em `push` para `main` e também manualmente por `workflow_dispatch`.
+- A pipeline dedicada do `matching-service` roda em `pull_request` para `main` e `develop`, em `push` para `main` e `develop`, e também manualmente por `workflow_dispatch`.
 - Cada microservice/gateway executa seus testes unitários em um job separado: `auth-service`, `item-service`, `matching-service`, `recovery-case-service` e `gateway`.
 - O job agregado `unit-tests / required` só passa quando todos os jobs unitários passam.
+<<<<<<< HEAD
 >>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+- A pipeline do `matching-service` valida os testes em PR, faz build da imagem Docker sem push no PR e publica a imagem somente em `push` para `main`.
+- O evento `push` na `main` representa o pós-merge do PR quando a branch `main` está protegida contra pushes diretos.
+
+Secrets necessários no GitHub para publicar a imagem do `matching-service` no DockerHub:
+
+- `DOCKERHUB_USERNAME`: usuário ou namespace do DockerHub onde a imagem será publicada.
+- `DOCKERHUB_TOKEN`: access token do DockerHub com permissão de push.
+
+Imagem publicada após merge na `main`:
+
+- `docker.io/<DOCKERHUB_USERNAME>/matching-service:latest`
+- `docker.io/<DOCKERHUB_USERNAME>/matching-service:sha-<commit-curto>`
+>>>>>>> 8cd677f (feat: add dockerhub deploy)
 
 Para bloquear pushes diretos na `main`, configure no GitHub um Branch Protection Rule ou Ruleset para a branch `main`:
 
