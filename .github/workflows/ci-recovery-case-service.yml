@@ -1,0 +1,44 @@
+name: CI recovery-case-service
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "recovery-case-service/**"
+      - ".github/workflows/ci-recovery-case-service.yml"
+
+jobs:
+  build-test-sonar-docker:
+    runs-on: ubuntu-latest
+    env:
+      SERVICE_DIR: recovery-case-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: pytest -q
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}_recovery-case-service
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectBaseDir=recovery-case-service
+
+      - name: Build Docker image
+        run: docker build -t recovery-case-service:${{ github.sha }} recovery-case-service

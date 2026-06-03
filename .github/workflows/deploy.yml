@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "auth-service/**"
+      - "gateway/**"
+      - "item-service/**"
+      - "matching-service/**"
+      - "recovery-case-service/**"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            hook: RENDER_DEPLOY_HOOK_AUTH_DEV
+          - service: gateway
+            hook: RENDER_DEPLOY_HOOK_GATEWAY_DEV
+          - service: item-service
+            hook: RENDER_DEPLOY_HOOK_ITEM_DEV
+          - service: matching-service
+            hook: RENDER_DEPLOY_HOOK_MATCHING_DEV
+          - service: recovery-case-service
+            hook: RENDER_DEPLOY_HOOK_RECOVERY_DEV
+
+    steps:
+      - name: Deploy ${{ matrix.service }} to DEV
+        run: curl -fsS -X POST "${{ secrets[matrix.hook] }}"
+
+  deploy-homol:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            hook: RENDER_DEPLOY_HOOK_AUTH_HOMOL
+          - service: gateway
+            hook: RENDER_DEPLOY_HOOK_GATEWAY_HOMOL
+          - service: item-service
+            hook: RENDER_DEPLOY_HOOK_ITEM_HOMOL
+          - service: matching-service
+            hook: RENDER_DEPLOY_HOOK_MATCHING_HOMOL
+          - service: recovery-case-service
+            hook: RENDER_DEPLOY_HOOK_RECOVERY_HOMOL
+
+    steps:
+      - name: Deploy ${{ matrix.service }} to HOMOL
+        run: curl -fsS -X POST "${{ secrets[matrix.hook] }}"
