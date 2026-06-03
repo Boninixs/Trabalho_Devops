@@ -44,3 +44,4 @@ app = FastAPI(
 Instrumentator().instrument(app).expose(app)
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)
+
