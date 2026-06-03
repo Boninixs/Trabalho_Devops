@@ -9,6 +9,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - `item-service`: cadastro, consulta, atualização e histórico de itens.
 - `matching-service`: consome eventos de itens e sugere matches entre `LOST` e `FOUND`.
 - `recovery-case-service`: consome `MatchAccepted` e orquestra a recuperação.
+- `prometheus`: coleta métricas do `matching-service`.
+- `grafana`: exibe dashboard do `matching-service`.
 - Um PostgreSQL por serviço e RabbitMQ para eventos assíncronos.
 
 ## Principais características
@@ -20,6 +22,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - Saga de recuperação entre `recovery-case-service` e `item-service`.
 - JWT no `gateway` e correlação por `X-Correlation-ID`.
 - DLQ para consumidores e retry finito na publicação de eventos.
+- Métricas Prometheus expostas pelo `matching-service` em `/metrics`.
+- Dashboard Grafana provisionado automaticamente para o `matching-service`.
 
 ## Stack
 
@@ -29,6 +33,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - Alembic
 - PostgreSQL
 - RabbitMQ
+- Prometheus
+- Grafana
 - Docker Compose
 - Pytest
 
@@ -41,6 +47,8 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 ├── item-service/
 ├── matching-service/
 ├── recovery-case-service/
+├── infra/grafana/
+├── infra/prometheus/
 ├── infra/rabbitmq/
 ├── tests/e2e/
 ├── scripts/
@@ -83,8 +91,31 @@ docker compose ps
 - Matching: `http://localhost:8003`
 - Recovery Case: `http://localhost:8004`
 - RabbitMQ Management: `http://localhost:15672`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
+
+Credenciais padrão do Grafana:
+
+- Usuário: `${GRAFANA_ADMIN_USER:-admin}`
+- Senha: `${GRAFANA_ADMIN_PASSWORD:-admin}`
 
 As migrações dos serviços com banco são executadas automaticamente na inicialização dos containers.
+
+## Monitoramento
+
+O monitoramento provisionado nesta stack cobre o `matching-service`.
+
+- O `matching-service` expõe métricas Prometheus em `GET /metrics` diretamente na porta do serviço.
+- O Prometheus faz scrape de `http://matching-service:8000/metrics` dentro da rede Docker.
+- O Grafana sobe com datasource para o Prometheus já configurado.
+- O dashboard `Matching Service Overview` é carregado automaticamente no Grafana.
+
+Arquivos principais:
+
+- `infra/prometheus/prometheus.yml`
+- `infra/grafana/provisioning/datasources/prometheus.yml`
+- `infra/grafana/provisioning/dashboards/dashboards.yml`
+- `infra/grafana/dashboards/matching-service-overview.json`
 
 ### Migrações manuais
 
@@ -93,6 +124,26 @@ Se precisar rodar manualmente:
 ```bash
 ./scripts/migrate_all.sh
 ```
+
+## CI/CD e proteção da main
+
+O repositório possui pipeline de CI em `.github/workflows/ci.yml` para validar pull requests para a `main`.
+Esta configuração cobre o gate de CI; a etapa de CD deve ser adicionada quando houver registry, ambiente de deploy e secrets definidos.
+
+- A pipeline roda em `pull_request` para `main`, em `push` para `main` e também manualmente por `workflow_dispatch`.
+- Cada microservice/gateway executa seus testes unitários em um job separado: `auth-service`, `item-service`, `matching-service`, `recovery-case-service` e `gateway`.
+- O job agregado `unit-tests / required` só passa quando todos os jobs unitários passam.
+
+Para bloquear pushes diretos na `main`, configure no GitHub um Branch Protection Rule ou Ruleset para a branch `main`:
+
+- Ative `Require a pull request before merging`.
+- Ative `Require status checks to pass before merging`.
+- Marque como obrigatório o check `unit-tests / required`.
+- Ative `Require branches to be up to date before merging`, se quiser exigir PR atualizado com a `main` antes do merge.
+- Desative force pushes e branch deletion.
+- Não permita bypass da regra, exceto se houver um administrador explicitamente responsável por emergências.
+
+Essa configuração é necessária porque o GitHub Actions valida a qualidade do PR, mas o bloqueio de push direto é uma regra da plataforma GitHub, não do arquivo YAML da pipeline.
 
 ## Como testar
 

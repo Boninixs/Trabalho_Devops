@@ -1,0 +1,336 @@
+name: Semantic Tags
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semantic-tags-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-pr:
+    name: conventional commits / pull request
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate Conventional Commits and preview semantic tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import urllib.request
+
+          conventional_re = re.compile(
+              r"^(?P<type>feat|fix|perf|docs|style|refactor|test|build|ci|chore|revert)"
+              r"(?P<scope>\([A-Za-z0-9._/-]+\))?"
+              r"(?P<breaking>!)?: .+$"
+          )
+          breaking_re = re.compile(r"(?m)^BREAKING[- ]CHANGE: .+")
+
+          def latest_semver_tag():
+              raw_tags = subprocess.check_output(
+                  ["git", "tag", "--list", "v[0-9]*.[0-9]*.[0-9]*"],
+                  text=True,
+              ).splitlines()
+              parsed = []
+              for tag in raw_tags:
+                  match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", tag)
+                  if match:
+                      parsed.append((tuple(map(int, match.groups())), tag))
+              if not parsed:
+                  return None, (0, 0, 0)
+              version, tag = max(parsed, key=lambda item: item[0])
+              return tag, version
+
+          def next_version(current, bump):
+              major, minor, patch = current
+              if bump == "major":
+                  return major + 1, 0, 0
+              if bump == "minor":
+                  return major, minor + 1, 0
+              return major, minor, patch + 1
+
+          def bump_for_message(message):
+              first_line = message.splitlines()[0].strip()
+              match = conventional_re.match(first_line)
+              if not match:
+                  return None
+              if match.group("breaking") or breaking_re.search(message):
+                  return "major"
+              commit_type = match.group("type")
+              if commit_type == "feat":
+                  return "minor"
+              if commit_type in {"fix", "perf"}:
+                  return "patch"
+              return None
+
+          def fetch_pr_commits():
+              repo = os.environ["REPOSITORY"]
+              pr_number = os.environ["PR_NUMBER"]
+              token = os.environ["GITHUB_TOKEN"]
+              url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/commits?per_page=100"
+              commits = []
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {token}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              }
+              while url:
+                  request = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(request) as response:
+                      commits.extend(json.loads(response.read().decode("utf-8")))
+                      link = response.headers.get("Link", "")
+                  next_url = None
+                  for part in link.split(","):
+                      if 'rel="next"' in part:
+                          next_url = part[part.find("<") + 1:part.find(">")]
+                  url = next_url
+              return commits
+
+          def is_ignored_commit(message):
+              first_line = message.splitlines()[0].strip()
+              return first_line.startswith("Merge ")
+
+          errors = []
+          candidates = []
+
+          pr_title = os.environ["PR_TITLE"].strip()
+          if not conventional_re.match(pr_title):
+              errors.append(f"PR title is not Conventional Commit compliant: {pr_title!r}")
+          else:
+              candidates.append(("PR title", pr_title))
+
+          commits = fetch_pr_commits()
+          for commit in commits:
+              sha = commit["sha"][:7]
+              message = commit["commit"]["message"].strip()
+              first_line = message.splitlines()[0].strip()
+              if is_ignored_commit(message):
+                  continue
+              if not conventional_re.match(first_line):
+                  errors.append(f"Commit {sha} is not Conventional Commit compliant: {first_line!r}")
+              else:
+                  candidates.append((sha, message))
+
+          latest_tag, current = latest_semver_tag()
+          priority = {None: 0, "patch": 1, "minor": 2, "major": 3}
+          bump = None
+          for _, message in candidates:
+              candidate_bump = bump_for_message(message)
+              if priority[candidate_bump] > priority[bump]:
+                  bump = candidate_bump
+
+          summary_lines = [
+              "## Semantic tag preview",
+              "",
+              f"Latest semantic tag: `{latest_tag or 'none'}`",
+              f"Conventional commit candidates evaluated: `{len(candidates)}`",
+          ]
+          if bump:
+              next_tag = "v%d.%d.%d" % next_version(current, bump)
+              summary_lines.append(f"Detected bump: `{bump}`")
+              summary_lines.append(f"Next tag after merge: `{next_tag}`")
+          else:
+              summary_lines.append("Detected bump: `none`")
+              summary_lines.append("No semantic tag would be created from this PR.")
+
+          if errors:
+              summary_lines.append("")
+              summary_lines.append("### Conventional Commit errors")
+              summary_lines.extend(f"- {error}" for error in errors)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(summary_lines) + "\n")
+
+          if errors:
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+          PY
+
+  create-tag:
+    name: semantic tag / main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Create semantic tag from Conventional Commits
+        run: |
+          python <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+
+          conventional_re = re.compile(
+              r"^(?P<type>feat|fix|perf|docs|style|refactor|test|build|ci|chore|revert)"
+              r"(?P<scope>\([A-Za-z0-9._/-]+\))?"
+              r"(?P<breaking>!)?: .+$"
+          )
+          breaking_re = re.compile(r"(?m)^BREAKING[- ]CHANGE: .+")
+
+          def latest_semver_tag():
+              raw_tags = subprocess.check_output(
+                  ["git", "tag", "--list", "v[0-9]*.[0-9]*.[0-9]*"],
+                  text=True,
+              ).splitlines()
+              parsed = []
+              for tag in raw_tags:
+                  match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", tag)
+                  if match:
+                      parsed.append((tuple(map(int, match.groups())), tag))
+              if not parsed:
+                  return None, (0, 0, 0)
+              version, tag = max(parsed, key=lambda item: item[0])
+              return tag, version
+
+          def next_version(current, bump):
+              major, minor, patch = current
+              if bump == "major":
+                  return major + 1, 0, 0
+              if bump == "minor":
+                  return major, minor + 1, 0
+              return major, minor, patch + 1
+
+          def bump_for_message(message):
+              first_line = message.splitlines()[0].strip()
+              match = conventional_re.match(first_line)
+              if not match:
+                  return None
+              if match.group("breaking") or breaking_re.search(message):
+                  return "major"
+              commit_type = match.group("type")
+              if commit_type == "feat":
+                  return "minor"
+              if commit_type in {"fix", "perf"}:
+                  return "patch"
+              return None
+
+          def is_ignored_commit(subject):
+              return subject.startswith("Merge ")
+
+          latest_tag, current = latest_semver_tag()
+          revision_range = f"{latest_tag}..HEAD" if latest_tag else "HEAD"
+          raw_log = subprocess.check_output(
+              ["git", "log", "--format=%H%x1f%s%x1f%b%x1e", revision_range],
+              text=True,
+          )
+
+          records = [record for record in raw_log.split("\x1e") if record.strip()]
+          messages = []
+          errors = []
+          for record in records:
+              sha, subject, body = record.split("\x1f", 2)
+              subject = subject.strip()
+              if is_ignored_commit(subject):
+                  continue
+              message = subject if not body.strip() else f"{subject}\n{body.strip()}"
+              if not conventional_re.match(subject):
+                  errors.append(f"Commit {sha[:7]} is not Conventional Commit compliant: {subject!r}")
+              else:
+                  messages.append(message)
+
+          summary_lines = [
+              "## Semantic tag creation",
+              "",
+              f"Latest semantic tag: `{latest_tag or 'none'}`",
+              f"Commits evaluated: `{len(messages)}`",
+          ]
+
+          if errors:
+              summary_lines.append("")
+              summary_lines.append("### Conventional Commit errors")
+              summary_lines.extend(f"- {error}" for error in errors)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("\n".join(summary_lines) + "\n")
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+
+          priority = {None: 0, "patch": 1, "minor": 2, "major": 3}
+          bump = None
+          for message in messages:
+              candidate_bump = bump_for_message(message)
+              if priority[candidate_bump] > priority[bump]:
+                  bump = candidate_bump
+
+          if not bump:
+              summary_lines.append("Detected bump: `none`")
+              summary_lines.append("No semantic tag was created.")
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("\n".join(summary_lines) + "\n")
+              print("No feat/fix/perf/BREAKING CHANGE commits found. Skipping tag creation.")
+              sys.exit(0)
+
+          next_tag = "v%d.%d.%d" % next_version(current, bump)
+          tag_exists = subprocess.run(
+              ["git", "rev-parse", "-q", "--verify", f"refs/tags/{next_tag}"],
+              stdout=subprocess.DEVNULL,
+              stderr=subprocess.DEVNULL,
+              check=False,
+          ).returncode == 0
+          if tag_exists:
+              summary_lines.append(f"Detected bump: `{bump}`")
+              summary_lines.append(f"Tag `{next_tag}` already exists. Nothing was pushed.")
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("\n".join(summary_lines) + "\n")
+              print(f"Tag {next_tag} already exists. Skipping tag creation.")
+              sys.exit(0)
+
+          subprocess.check_call(["git", "config", "user.name", "github-actions[bot]"])
+          subprocess.check_call([
+              "git",
+              "config",
+              "user.email",
+              "41898282+github-actions[bot]@users.noreply.github.com",
+          ])
+          subprocess.check_call(["git", "tag", "-a", next_tag, "-m", f"Release {next_tag}"])
+          subprocess.check_call(["git", "push", "origin", next_tag])
+
+          summary_lines.append(f"Detected bump: `{bump}`")
+          summary_lines.append(f"Created tag: `{next_tag}`")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(summary_lines) + "\n")
+          PY

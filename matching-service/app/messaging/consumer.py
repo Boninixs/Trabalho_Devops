@@ -10,6 +10,7 @@ from aio_pika import ExchangeType, IncomingMessage
 
 from app.core.config import get_settings
 from app.core.logging import correlation_id_ctx, get_logger
+from app.core.metrics import record_item_event_consumed
 from app.db.session import SessionLocal
 from app.schemas.events import EventEnvelope
 from app.services.matching_service import consume_item_event
@@ -152,9 +153,11 @@ class ItemEventsConsumer:
             session = SessionLocal()
             try:
                 consume_item_event(session, envelope)
+                record_item_event_consumed(event_type=envelope.event_type, result="processed")
                 logger.info("item_event_processed")
             except Exception:
                 session.rollback()
+                record_item_event_consumed(event_type=envelope.event_type, result="failed")
                 logger.exception("item_event_processing_failed")
                 raise
             finally:

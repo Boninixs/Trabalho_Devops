@@ -6,6 +6,7 @@ alembic==1.18.4
 pydantic-settings==2.14.1
 aio-pika==9.6.2
 httpx==0.28.1
+prometheus-client==0.20.0
 pytest==9.0.3
 pytest-cov==7.1.0
 python-dotenv==1.2.2
