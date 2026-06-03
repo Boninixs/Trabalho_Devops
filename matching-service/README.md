@@ -1,4 +1,5 @@
 # Matching Service
+Testing tag
 
 O `matching-service` e o microsservico responsavel por consumir eventos de itens perdidos/encontrados, manter uma projecao local desses itens e gerar sugestoes de match entre itens `LOST` e `FOUND`.
 
