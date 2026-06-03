@@ -9,6 +9,7 @@ scrape_configs:
           - prometheus:9090
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   - job_name: matching-service
     metrics_path: /metrics
     static_configs:
@@ -21,3 +22,10 @@ scrape_configs:
       - targets:
           - item-service:8000
 >>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+  - job_name: matching-service
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - matching-service:8000
+>>>>>>> 2133565 (fix: pipeline matching-service)

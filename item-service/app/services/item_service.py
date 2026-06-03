@@ -9,11 +9,6 @@ from app.core.exceptions import (
     InvalidItemUpdateError,
     ItemNotFoundError,
 )
-from app.core.metrics import (
-    record_item_event_enqueued,
-    record_item_status_transition,
-    record_items_created,
-)
 from app.mappers.item_mapper import to_item_event_payload
 from app.messaging.outbox import enqueue_broker_message
 from app.messaging.topology import ROUTING_KEYS
@@ -107,8 +102,6 @@ def create_item(session: Session, payload: ItemCreateRequest) -> Item:
     record_item_event(session, item, event_type="ItemCreated")
     session.commit()
     session.refresh(item)
-    record_items_created()
-    record_item_event_enqueued(event_type="ItemCreated")
     return item
 
 
@@ -138,7 +131,6 @@ def update_item(session: Session, item_id: UUID, payload: ItemUpdateRequest) -> 
     record_item_event(session, item, event_type="ItemUpdated")
     session.commit()
     session.refresh(item)
-    record_item_event_enqueued(event_type="ItemUpdated")
     return item
 
 
@@ -154,7 +146,7 @@ def update_item_status(
             "Status solicitado é reservado para o fluxo interno de recovery",
         )
 
-    from_status = apply_status_transition(
+    apply_status_transition(
         session=session,
         item=item,
         target_status=payload.status,
@@ -164,22 +156,15 @@ def update_item_status(
     )
     session.commit()
     session.refresh(item)
-    record_item_status_transition(
-        from_status=from_status,
-        to_status=item.status,
-        transition_mode="public",
-    )
-    record_item_event_enqueued(event_type="ItemUpdated")
     return item
 
 
 def open_recovery(session: Session, payload: RecoveryOpenRequest) -> list[Item]:
     items = get_items_or_raise(session, payload.item_ids)
     reason = payload.reason or "Recovery case opened"
-    transitions: list[tuple[ItemStatus, ItemStatus]] = []
 
     for item in items:
-        from_status = apply_status_transition(
+        apply_status_transition(
             session=session,
             item=item,
             target_status=ItemStatus.IN_RECOVERY,
@@ -187,27 +172,17 @@ def open_recovery(session: Session, payload: RecoveryOpenRequest) -> list[Item]:
             actor_user_id=payload.actor_user_id,
             transition_mode="internal_open",
         )
-        transitions.append((from_status, item.status))
 
     session.commit()
-    for from_status, to_status in transitions:
-        record_item_status_transition(
-            from_status=from_status,
-            to_status=to_status,
-            transition_mode="internal_open",
-        )
-    if transitions:
-        record_item_event_enqueued(event_type="ItemUpdated", count=len(transitions))
     return items
 
 
 def cancel_recovery(session: Session, payload: RecoveryCancelRequest) -> list[Item]:
     items = get_items_or_raise(session, payload.item_ids)
     reason = payload.reason or "Recovery case cancelled"
-    transitions: list[tuple[ItemStatus, ItemStatus]] = []
 
     for item in items:
-        from_status = apply_status_transition(
+        apply_status_transition(
             session=session,
             item=item,
             target_status=payload.target_status,
@@ -215,27 +190,17 @@ def cancel_recovery(session: Session, payload: RecoveryCancelRequest) -> list[It
             actor_user_id=payload.actor_user_id,
             transition_mode="internal_cancel",
         )
-        transitions.append((from_status, item.status))
 
     session.commit()
-    for from_status, to_status in transitions:
-        record_item_status_transition(
-            from_status=from_status,
-            to_status=to_status,
-            transition_mode="internal_cancel",
-        )
-    if transitions:
-        record_item_event_enqueued(event_type="ItemUpdated", count=len(transitions))
     return items
 
 
 def complete_recovery(session: Session, payload: RecoveryCompleteRequest) -> list[Item]:
     items = get_items_or_raise(session, payload.item_ids)
     reason = payload.reason or "Recovery case completed"
-    transitions: list[tuple[ItemStatus, ItemStatus]] = []
 
     for item in items:
-        from_status = apply_status_transition(
+        apply_status_transition(
             session=session,
             item=item,
             target_status=ItemStatus.RECOVERED,
@@ -243,17 +208,8 @@ def complete_recovery(session: Session, payload: RecoveryCompleteRequest) -> lis
             actor_user_id=payload.actor_user_id,
             transition_mode="internal_complete",
         )
-        transitions.append((from_status, item.status))
 
     session.commit()
-    for from_status, to_status in transitions:
-        record_item_status_transition(
-            from_status=from_status,
-            to_status=to_status,
-            transition_mode="internal_complete",
-        )
-    if transitions:
-        record_item_event_enqueued(event_type="ItemUpdated", count=len(transitions))
     return items
 
 

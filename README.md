@@ -22,7 +22,10 @@ Sistema de achados e perdidos com arquitetura orientada a microsserviços. O flu
 - Saga de recuperação entre `recovery-case-service` e `item-service`.
 - JWT no `gateway` e correlação por `X-Correlation-ID`.
 - DLQ para consumidores e retry finito na publicação de eventos.
+<<<<<<< HEAD
 - Swagger/OpenAPI do `matching-service` controlado por variável de ambiente.
+=======
+>>>>>>> 2133565 (fix: pipeline matching-service)
 - Métricas Prometheus expostas pelo `matching-service` em `/metrics`.
 - Dashboard Grafana provisionado automaticamente para o `matching-service`.
 
@@ -146,13 +149,17 @@ O monitoramento provisionado nesta stack cobre o `matching-service`.
 =======
 ## Monitoramento
 
-O monitoramento provisionado nesta stack cobre o `item-service`.
+O monitoramento provisionado nesta stack cobre o `matching-service`.
 
-- O `item-service` expõe métricas Prometheus em `GET /metrics` diretamente na porta do serviço.
-- O Prometheus faz scrape de `http://item-service:8000/metrics` dentro da rede Docker.
+- O `matching-service` expõe métricas Prometheus em `GET /metrics` diretamente na porta do serviço.
+- O Prometheus faz scrape de `http://matching-service:8000/metrics` dentro da rede Docker.
 - O Grafana sobe com datasource para o Prometheus já configurado.
+<<<<<<< HEAD
 - Um dashboard inicial chamado `Item Service Overview` é carregado automaticamente no Grafana.
 >>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+- O dashboard `Matching Service Overview` é carregado automaticamente no Grafana.
+>>>>>>> 2133565 (fix: pipeline matching-service)
 
 Arquivos principais:
 
@@ -160,10 +167,14 @@ Arquivos principais:
 - `infra/grafana/provisioning/datasources/prometheus.yml`
 - `infra/grafana/provisioning/dashboards/dashboards.yml`
 <<<<<<< HEAD
+<<<<<<< HEAD
 - `infra/grafana/dashboards/matching-service-overview.json`
 =======
 - `infra/grafana/dashboards/item-service-overview.json`
 >>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+- `infra/grafana/dashboards/matching-service-overview.json`
+>>>>>>> 2133565 (fix: pipeline matching-service)
 
 ### Migrações manuais
 

@@ -140,7 +140,6 @@ services:
       DATABASE_URL: postgresql+psycopg://${ITEM_DB_USER:-postgres}:${ITEM_DB_PASSWORD:-postgres}@item-postgres:5432/${ITEM_DB_NAME:-item_service}
       DATABASE_ECHO: "false"
       OUTBOX_PUBLISHER_ENABLED: "${ITEM_OUTBOX_PUBLISHER_ENABLED:-true}"
-      METRICS_ENABLED: "${ITEM_METRICS_ENABLED:-true}"
       OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS: "${OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS:-1}"
       OUTBOX_PUBLISH_BATCH_SIZE: "${OUTBOX_PUBLISH_BATCH_SIZE:-50}"
       OUTBOX_PUBLISH_RETRY_DELAY_SECONDS: "${OUTBOX_PUBLISH_RETRY_DELAY_SECONDS:-2}"
@@ -169,10 +168,14 @@ services:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
 <<<<<<< HEAD
+<<<<<<< HEAD
       matching-service:
 =======
       item-service:
 >>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+      matching-service:
+>>>>>>> 2133565 (fix: pipeline matching-service)
         condition: service_healthy
 
   grafana:
