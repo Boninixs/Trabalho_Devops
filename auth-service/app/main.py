@@ -5,6 +5,7 @@ são incluídas. Ele também define o ciclo de vida da aplicação, registrando 
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -28,12 +29,18 @@ async def lifespan(_: FastAPI):
     yield
     logger.info("service_stopping")
 
+swagger_enabled = settings.environment != "homol"
 
 app = FastAPI(
     title=settings.service_name,
     description="Authentication and authorization service.",
     version=settings.service_version,
     lifespan=lifespan,
+    docs_url="/docs" if swagger_enabled else None,
+    redoc_url="/redoc" if swagger_enabled else None,
+    openapi_url="/openapi.json" if swagger_enabled else None,
 )
+
+Instrumentator().instrument(app).expose(app)
 app.add_middleware(RequestLoggingMiddleware)
 app.include_router(api_router)
