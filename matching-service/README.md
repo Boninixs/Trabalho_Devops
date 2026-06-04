@@ -1,4 +1,5 @@
 # Matching Service
+Testing tag
 
 O `matching-service` e o microsservico responsavel por consumir eventos de itens perdidos/encontrados, manter uma projecao local desses itens e gerar sugestoes de match entre itens `LOST` e `FOUND`.
 
@@ -515,12 +516,19 @@ docker.io/<DOCKERHUB_USERNAME>/matching-service:sha-<commit-curto>
 
 ### Relacao com tags semanticas
 
-O workflow `matching-service-ci.yml` publica a imagem com `latest` e `sha-<commit-curto>`. A validacao de Conventional Commits e a criacao de tags semanticas ficam em outro workflow: `../.github/workflows/semantic-tags.yml`.
+O workflow `matching-service-ci.yml` publica a imagem com `latest` e `sha-<commit-curto>`. A deteccao de `feat`, `fix` e breaking changes para criar tags semanticas fica em outro workflow: `../.github/workflows/semantic-tags.yml`.
 
 Isso separa responsabilidades:
 
 - `matching-service-ci.yml`: qualidade do servico, build Docker e publicacao no DockerHub.
-- `semantic-tags.yml`: validacao de Conventional Commits e criacao de tag semantica.
+- `semantic-tags.yml`: detecta semantica de release e cria tags sem bloquear mensagens sem efeito de versao.
+
+Regras de versionamento:
+
+- `feat` gera incremento minor.
+- `fix` gera incremento patch.
+- `!` no cabecalho ou `BREAKING CHANGE` no corpo gera incremento major.
+- Outros tipos e mensagens livres sao ignorados sem falhar a pipeline.
 
 ## Comandos uteis locais
 

@@ -1,9 +1,21 @@
 apiVersion: 1
 
 providers:
+<<<<<<< HEAD
+<<<<<<< HEAD
   - name: microservices
     orgId: 1
     folder: Microservices
+=======
+  - name: item-service
+    orgId: 1
+    folder: Item Service
+>>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+  - name: microservices
+    orgId: 1
+    folder: Microservices
+>>>>>>> 2133565 (fix: pipeline matching-service)
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

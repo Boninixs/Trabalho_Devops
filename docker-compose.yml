@@ -167,7 +167,15 @@ services:
       - prometheus_data:/prometheus
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
+<<<<<<< HEAD
+<<<<<<< HEAD
       matching-service:
+=======
+      item-service:
+>>>>>>> b6b33ef (feat: pipeline and observability)
+=======
+      matching-service:
+>>>>>>> 2133565 (fix: pipeline matching-service)
         condition: service_healthy
 
   grafana:
@@ -287,5 +295,8 @@ volumes:
   item_postgres_data:
   matching_postgres_data:
   recovery_postgres_data:
+<<<<<<< HEAD
   prometheus_data:
+=======
+>>>>>>> c8e2bbb ("feat: implement auth-service observability with Prometheus and Grafana")
   grafana_data:
