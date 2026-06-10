@@ -1,6 +1,7 @@
 name: CI recovery-case-service
 
 on:
+<<<<<<< HEAD
   pull_request:
     branches:
       - develop
@@ -9,6 +10,10 @@ on:
       - "recovery-case-service/**"
       - "sonar-project.properties"
       - ".github/workflows/**"
+=======
+
+  workflow_call:
+>>>>>>> origin/develop
 
 jobs:
   build-test-sonar-docker:
