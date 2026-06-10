@@ -1,10 +1,17 @@
 version: 2
 
 updates:
-  - package-ecosystem: "maven"
-    directory: "/"
-
+  - package-ecosystem: "pip"
+    directory: "/auth-service"
     schedule:
       interval: "weekly"
 
-    target-branch: "develop"
+  - package-ecosystem: "pip"
+    directory: "/recovery-case-service"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
