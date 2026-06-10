@@ -1,6 +1,8 @@
 name: Deploy
 
 on:
+  workflow_call:
+    
   push:
     branches: [develop, main]
     paths:
