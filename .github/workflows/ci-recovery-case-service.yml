@@ -8,6 +8,7 @@ on:
     paths:
       - "recovery-case-service/**"
       - "sonar-project.properties"
+      - ".github/workflows/**"
 
 jobs:
   build-test-sonar-docker:
@@ -36,8 +37,13 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          args: >
+            -Dsonar.sources=recovery-case-service/app
+            -Dsonar.tests=recovery-case-service/tests
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Build Docker image
-        run: docker build -t recovery-case-service:${{ github.sha }} .
+        working-directory: ${{ github.workspace }}
+        run: docker build -t recovery-case-service:${{ github.sha }} -f ./recovery-case-service/Dockerfile ./recovery-case-service
