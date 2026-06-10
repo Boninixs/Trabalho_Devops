@@ -3,14 +3,6 @@ name: CI recovery-case-service
 on:
 
   workflow_call:
-    
-  pull_request:
-    branches:
-      - develop
-      - main
-    paths:
-      - "recovery-case-service/**"
-      - "sonar-project.properties"
 
 jobs:
   build-test-sonar-docker:

@@ -2,25 +2,7 @@ name: Docker Hub Publish
 
 on:
   workflow_call:
-    
-  pull_request:
-    branches: [develop, main]
-    paths:
-      - "auth-service/**"
-      - "gateway/**"
-      - "item-service/**"
-      - "matching-service/**"
-      - "recovery-case-service/**"
-      - ".github/workflows/**"
-  push:
-    branches: [develop]
-    paths:
-      - "auth-service/**"
-      - "gateway/**"
-      - "item-service/**"
-      - "matching-service/**"
-      - "recovery-case-service/**"
-      - ".github/workflows/**"
+
 
 permissions:
   contents: read
