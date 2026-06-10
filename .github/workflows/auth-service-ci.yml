@@ -1,6 +1,9 @@
 name: Auth Service CI 
 
 on:
+
+  workflow_call:
+    
   push:
     branches:
       - develop

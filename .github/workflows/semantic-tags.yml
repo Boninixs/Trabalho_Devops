@@ -1,18 +1,20 @@
 name: Semantic Tags
 
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - edited
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+    workflow_call:
+
+    pull_request:
+        branches:
+        - main
+        types:
+        - opened
+        - reopened
+        - synchronize
+        - edited
+    push:
+        branches:
+        - main
+    workflow_dispatch:
 
 permissions:
   contents: read
