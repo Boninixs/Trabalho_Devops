@@ -14,5 +14,5 @@ pytest-cov==7.1.0
 email-validator==2.3.0
 python-dotenv==1.2.2
 psycopg2-binary==2.9.12
-prometheus-fastapi-instrumentator==7.1.0
+prometheus-fastapi-instrumentator==8.0.0
 python-jose==3.4.0
