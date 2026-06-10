@@ -4,19 +4,6 @@ on:
 
   workflow_call:
     
-  push:
-    branches:
-      - develop
-      - main
-    paths:
-      - "auth-service/**"
-      - "sonar-project.properties"
-
-  pull_request:
-    paths:
-      - "auth-service/**"
-      - "sonar-project.properties"
-
 jobs:
 
   tests:

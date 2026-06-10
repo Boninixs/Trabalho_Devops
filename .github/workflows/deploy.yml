@@ -2,16 +2,7 @@ name: Deploy
 
 on:
   workflow_call:
-    
-  push:
-    branches: [develop, main]
-    paths:
-      - "auth-service/**"
-      - "gateway/**"
-      - "item-service/**"
-      - "matching-service/**"
-      - "recovery-case-service/**"
-      - ".github/workflows/deploy.yml"
+
 
 jobs:
   deploy-dev:
