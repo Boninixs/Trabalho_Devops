@@ -1,0 +1,58 @@
+name: Application Pipeline
+
+on:
+    push:
+        branches:
+            - develop
+            - main
+    
+    pull_request:
+        branches:
+            - develop
+            - main
+
+jobs:
+
+    auth-service:
+        name: Auth Service CI
+        uses: ./.github/workflows/auth-service-ci.yml
+        secrets: inherit
+
+    recovery-case-service:
+        name: CI recovery-case-service
+        uses: ./.github/workflows/ci-recovery-case-service.yml
+        secrets: inherit
+
+    matching-service:
+        name: Matching Service CI
+        uses: ./.github/workflows/matching-service-ci.yml
+        secrets: inherit
+        
+    docker-publish:
+        name: Docker Hub Publish
+        needs:
+            - auth-service
+            - recovery-case-service
+            - matching-service
+        uses: ./.github/workflows/docker-publish.yml
+        secrets: inherit
+
+    semantic-tags:
+        name: Semantic Tags
+        needs: 
+            - docker-publish
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/workflows/semantic-tags.yml
+        secrets: inherit
+
+    deploy:
+        name: Deploy
+        needs: 
+            - docker-publish
+        uses: ./.github/workflows/deploy.yml
+        secrets: inherit
+
+
+
+        
+    
