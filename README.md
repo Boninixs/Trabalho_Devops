@@ -317,3 +317,5 @@ Routing keys publicadas no broker:
 - [Matching Service](docs/matching-service.md)
 - [Recovery Case Service](docs/recovery-case-service.md)
 - [Testes Manuais Pelo Terminal](docs/testes-manuais-pelo-terminal.md)
+
+jj
