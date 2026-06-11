@@ -4,7 +4,7 @@ sqlalchemy==2.0.41
 psycopg[binary]==3.1.18
 alembic==1.18.4
 pydantic-settings==2.14.1
-prometheus-fastapi-instrumentator==6.1.0
+prometheus-fastapi-instrumentator==8.0.0
 aio-pika==9.6.2
 httpx==0.28.1
 pytest==9.0.3
