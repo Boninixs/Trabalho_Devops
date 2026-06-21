@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: services-config
+  namespace: devops
+data:
+  # URLs internas
+  AUTH_SERVICE_BASE_URL: "http://auth-service:8000"
+  ITEM_SERVICE_BASE_URL: "http://item-service:8000"
+  MATCHING_SERVICE_BASE_URL: "http://matching-service:8000"
+  RECOVERY_CASE_SERVICE_BASE_URL: "http://recovery-case-service:8000"
+  
+  # RabbitMQ 
+  RABBITMQ_URL: "amqp://app:app@rabbitmq-service:5672/"
+  RABBITMQ_EVENTS_EXCHANGE: "domain.events"
+  RABBITMQ_DEAD_LETTER_EXCHANGE: "domain.events.dlx"
+  
+  ENVIRONMENT: "development"
+  LOG_LEVEL: "INFO"
+  SERVICE_VERSION: "0.1.0"
+  
+  GATEWAY_DOWNSTREAM_TIMEOUT_SECONDS: "10"
+  
+  # Configurações do Outbox
+  OUTBOX_PUBLISH_POLL_INTERVAL_SECONDS: "1"
+  OUTBOX_PUBLISH_BATCH_SIZE: "50"
+  OUTBOX_PUBLISH_RETRY_DELAY_SECONDS: "2"
+  OUTBOX_PUBLISH_MAX_ATTEMPTS: "10"

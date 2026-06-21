@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: item-postgres-config
+  namespace: devops
+data:
+  POSTGRES_DB: "item_service"
+  POSTGRES_HOST: "item-postgres-service"
+  POSTGRES_PORT: "5432"

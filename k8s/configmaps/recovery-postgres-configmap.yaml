@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recovery-postgres-config
+  namespace: devops
+data:
+  POSTGRES_DB: "recovery_case_service"
+  POSTGRES_HOST: "recovery-postgres-service"
+  POSTGRES_PORT: "5432"

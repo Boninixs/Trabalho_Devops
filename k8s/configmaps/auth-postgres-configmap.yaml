@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-postgres-config
+  namespace: devops
+data:
+  POSTGRES_DB: "auth_service"
+  POSTGRES_HOST: "auth-postgres-service"
+  POSTGRES_PORT: "5432"
