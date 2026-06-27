@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: devops
+data:
+  RABBITMQ_HOST: "rabbitmq-service"   
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_EVENTS_EXCHANGE: "domain.events"
+  RABBITMQ_DEAD_LETTER_EXCHANGE: "domain.events.dlx"

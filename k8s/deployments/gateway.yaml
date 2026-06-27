@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: devops
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+      - name: gateway
+        image: boninixs/gateway:latest
+        imagePullPolicy: IfNotPresent 
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: ENVIRONMENT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: LOG_LEVEL
+        - name: SERVICE_NAME
+          value: "gateway"
+        - name: SERVICE_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: SERVICE_VERSION
+        - name: SERVICE_PORT
+          value: "8000"
+        # URLs dos serviços downstream
+        - name: AUTH_SERVICE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: AUTH_SERVICE_BASE_URL
+        - name: ITEM_SERVICE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: ITEM_SERVICE_BASE_URL
+        - name: MATCHING_SERVICE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: MATCHING_SERVICE_BASE_URL
+        - name: RECOVERY_CASE_SERVICE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: RECOVERY_CASE_SERVICE_BASE_URL
+        # Timeout
+        - name: DOWNSTREAM_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: services-config
+              key: GATEWAY_DOWNSTREAM_TIMEOUT_SECONDS
+        # JWT (o gateway valida tokens)
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: JWT_SECRET
+        - name: JWT_ALGORITHM
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: JWT_ALGORITHM
+        # Health Check
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 20
